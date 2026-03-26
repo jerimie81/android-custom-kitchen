@@ -1,36 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_WORKSPACE_ROOT="${HOME}/android-custom-kitchen"
-WORKSPACE_ROOT="$DEFAULT_WORKSPACE_ROOT"
-
-echo "== Android Custom Kitchen setup =="
-echo
-
-if [[ ! -d "$DEFAULT_WORKSPACE_ROOT/original" || ! -d "$DEFAULT_WORKSPACE_ROOT/work" || ! -d "$DEFAULT_WORKSPACE_ROOT/modified" ]]; then
-  echo "First-run workspace setup"
-  read -r -p "Workspace root [${DEFAULT_WORKSPACE_ROOT}]: " input_root
-  if [[ -n "${input_root}" ]]; then
-    WORKSPACE_ROOT="$input_root"
-  fi
-
-  ORIGINAL_DIR="${WORKSPACE_ROOT}/original"
-  WORK_DIR="${WORKSPACE_ROOT}/work"
-  MODIFIED_DIR="${WORKSPACE_ROOT}/modified"
-
-  read -r -p "Create workspace directories (original/work/modified) in '${WORKSPACE_ROOT}'? [Y/n]: " create_ws
-  if [[ ! "$create_ws" =~ ^[Nn]$ ]]; then
-    mkdir -p "$ORIGINAL_DIR" "$WORK_DIR" "$MODIFIED_DIR"
-    echo "Workspace ready:"
-    echo "  - ${ORIGINAL_DIR}"
-    echo "  - ${WORK_DIR}"
-    echo "  - ${MODIFIED_DIR}"
-  else
-    echo "Workspace creation skipped."
-  fi
-fi
-
-TOOLS_DIR="${WORKSPACE_ROOT}/tools"
+TOOLS_DIR="${HOME}/android-custom-kitchen/tools"
 LINK_DIR="${HOME}/.local/bin"
 mkdir -p "$TOOLS_DIR" "$LINK_DIR"
 
@@ -86,6 +57,7 @@ link_dep() {
   ln -sf "$path" "${LINK_DIR}/${exe}"
 }
 
+echo "== Android Custom Kitchen setup =="
 echo "Step 1/3: Scanning this PC for dependencies..."
 
 for dep in "${DEPS[@]}"; do

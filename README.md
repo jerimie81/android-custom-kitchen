@@ -92,13 +92,7 @@ Run the setup script (or use the GUI **Run Setup** action, which mirrors this be
 ./setup.sh
 ```
 
-On first run, setup prompts to create a workspace with:
-
-- `~/android-custom-kitchen/original` → source files the app reads from
-- `~/android-custom-kitchen/work` → active processing/unpack/rebuild workspace
-- `~/android-custom-kitchen/modified` → completed output artifacts
-
-After workspace initialization, dependency setup works in this order:
+The setup flow now works in this order:
 
 1. **Scan your PC first** for required tools on `PATH` and common directories.
 2. **Ask you for manual locations** for any missing dependency.
