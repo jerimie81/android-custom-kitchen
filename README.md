@@ -86,14 +86,25 @@ python3 android_custom_kitchen_gui.py
 
 ### 3. Install the toolchain (first time)
 
-Open the **Setup** page in the sidebar and click **Run Setup**. This will:
+Run the setup script (or use the GUI **Run Setup** action, which mirrors this behavior):
 
-- Install all required `apt` packages (apktool, adb, fastboot, erofs-utils, e2fsprogs, openjdk-17, etc.)
-- Download `payload-dumper-go` from GitHub Releases
-- Download and link `jadx` and `jadx-gui`
-- Set up `~/android-custom-kitchen/tools/` as the local binary directory
+```bash
+./setup.sh
+```
 
-> Requires `sudo` and an internet connection. Idempotent — safe to re-run.
+On first run, setup prompts to create a workspace with:
+
+- `~/android-custom-kitchen/original` → source files the app reads from
+- `~/android-custom-kitchen/work` → active processing/unpack/rebuild workspace
+- `~/android-custom-kitchen/modified` → completed output artifacts
+
+After workspace initialization, dependency setup works in this order:
+
+1. **Scan your PC first** for required tools on `PATH` and common directories.
+2. **Ask you for manual locations** for any missing dependency.
+3. **As a last resort, install/download** what is still missing (apt or GitHub releases).
+
+All resolved executables are linked into `~/.local/bin` and downloaded tools go into `~/android-custom-kitchen/tools/`.
 
 ---
 
