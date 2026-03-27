@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "android-custom-kitchen"
+version = "2.1.0"
+description = "Android Custom Kitchen GUI + CLI workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "PyQt5>=5.15",
+]
+
+[project.scripts]
+android-custom-kitchen = "ackitchen.entry:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ackitchen"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/ackitchen",
+  "/android-custom-kitchen-gui.py",
+  "/debian",
+  "/pyproject.toml",
+  "/README.md",
+]

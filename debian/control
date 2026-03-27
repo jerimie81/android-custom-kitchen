@@ -1,0 +1,14 @@
+Source: android-custom-kitchen
+Section: utils
+Priority: optional
+Maintainer: Android Custom Kitchen Maintainers <maintainers@example.com>
+Build-Depends: debhelper-compat (= 13), dh-python, pybuild-plugin-pyproject, python3-all
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: android-custom-kitchen
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-pyqt5
+Description: Android Custom Kitchen GUI and CLI tooling
+ PyQt5 desktop application and headless CLI workflows for APK and
+ firmware operations.
