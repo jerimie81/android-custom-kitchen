@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIntValidator, QValidator
 from PyQt5.QtWidgets import (
     QCheckBox,
     QGridLayout,
@@ -37,6 +38,20 @@ TOOL_REGISTRY = [
     ("unpack_bootimg", "Boot Unpack", "AOSP unpack_bootimg"),
     ("fsck.erofs", "EROFS Extract", "Android 12+ FS"),
 ]
+
+
+class UnboundedIntValidator(QIntValidator):
+    """
+    Integer validator that accepts any non-empty unsigned integer length.
+    """
+
+    def validate(self, text: str, pos: int):
+        stripped = text.strip()
+        if not stripped:
+            return QValidator.Intermediate, text, pos
+        if stripped.isdigit():
+            return QValidator.Acceptable, text, pos
+        return QValidator.Invalid, text, pos
 
 
 class PageBase(QWidget):
@@ -404,6 +419,10 @@ class FirmwarePage(PageBase):
         self.pk_super_size = QLineEdit("3221225472")
         self.pk_group_size = QLineEdit("3221225472")
         self.pk_meta_size = QLineEdit("65536")
+        validator = UnboundedIntValidator(self)
+        self.pk_super_size.setValidator(validator)
+        self.pk_group_size.setValidator(validator)
+        self.pk_meta_size.setValidator(validator)
         self.settings.bind_line_edit(self.pk_dir.edit, "firmware/super/input_dir")
         self.settings.bind_line_edit(self.pk_out.edit, "firmware/super/output", "super_new.img")
         self.settings.bind_line_edit(self.pk_super_size, "firmware/super/super_size", "3221225472")
@@ -442,23 +461,27 @@ class FirmwarePage(PageBase):
         if not images:
             self.log.append("✖  No *.img partitions found in directory.", "fail")
             return
-        super_size = self.pk_super_size.text().strip()
-        group_size = self.pk_group_size.text().strip()
-        metadata = self.pk_meta_size.text().strip()
+        super_size_raw = self.pk_super_size.text().strip()
+        group_size_raw = self.pk_group_size.text().strip()
+        metadata_raw = self.pk_meta_size.text().strip()
+        try:
+            super_size = int(super_size_raw)
+            group_size = int(group_size_raw)
+            metadata = int(metadata_raw)
+        except ValueError:
+            self.log.append("✖  Super/group/metadata sizes must be integer byte values.", "fail")
+            return
         try:
             total = sum(p.stat().st_size for p in images)
-            if int(group_size) < total:
+            if group_size < total:
                 self.log.append(f"✖  Group max size ({group_size}) must be >= total partition bytes ({total}).", "fail")
                 return
         except OSError as exc:
             self.log.append(f"✖  Failed to read image size: {exc}", "fail")
             return
-        except ValueError:
-            self.log.append("✖  Super/group/metadata sizes must be integer byte values.", "fail")
-            return
 
         args = [
-            "--metadata-size", metadata,
+            "--metadata-size", str(metadata),
             "--super-name", "super",
             "--metadata-slots", "2",
             "--device", f"super:{super_size}",

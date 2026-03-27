@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from PyQt5.QtCore import QObject, QProcess, pyqtSignal
 
+from .adb import list_adb_devices
 
 @dataclass
 class CommandSpec:
@@ -35,6 +36,10 @@ class CommandRunner(QObject):
         self._proc.finished.connect(self._on_finish)
         self._queue: list[CommandSpec] = []
         self._failed = False
+        self._adb_serial_provider: Optional[Callable[[], str]] = None
+
+    def set_adb_serial_provider(self, provider: Callable[[], str]):
+        self._adb_serial_provider = provider
 
     @property
     def running(self) -> bool:
@@ -99,10 +104,41 @@ class CommandRunner(QObject):
             self.finished.emit(not self._failed)
             return
         cmd = self._queue.pop(0)
+        prepared = self._prepare_command(cmd)
+        if prepared is None:
+            self._failed = True
+            self._queue.clear()
+            self.line_out.emit("✖  Failed  (preflight)", "fail")
+            self.finished.emit(False)
+            return
+        cmd = prepared
         self._proc.setWorkingDirectory(cmd.cwd or str(Path.home()))
         pretty = " ".join([cmd.program, *[self._quote(arg) for arg in cmd.args]])
         self.line_out.emit(f"$ {pretty}", "info")
         self._proc.start(cmd.program, cmd.args)
+
+    def _prepare_command(self, cmd: CommandSpec) -> Optional[CommandSpec]:
+        if Path(cmd.program).name != "adb":
+            return cmd
+        devices = [d for d in list_adb_devices(cmd.program) if d.state == "device"]
+        if not devices:
+            self.line_out.emit("✖  No ADB devices connected. Connect a device and refresh the selector.", "fail")
+            return None
+        connected = ", ".join(d.serial for d in devices)
+        self.line_out.emit(f"ℹ  Connected ADB devices: {connected}", "info")
+        selected = self._adb_serial_provider().strip() if self._adb_serial_provider else ""
+        if not selected:
+            if len(devices) == 1:
+                selected = devices[0].serial
+            else:
+                self.line_out.emit("✖  Multiple ADB devices detected. Select a device from the combo box.", "fail")
+                return None
+        if selected not in {d.serial for d in devices}:
+            self.line_out.emit(f"✖  Selected ADB device '{selected}' is not connected.", "fail")
+            return None
+        if "-s" in cmd.args:
+            return cmd
+        return CommandSpec(program=cmd.program, args=["-s", selected, *cmd.args], cwd=cmd.cwd)
 
     @staticmethod
     def _quote(v: str) -> str:
