@@ -35,9 +35,19 @@ _NAV = [
 class MainWindow(QMainWindow):
     def __init__(self):
         """
-        Initialize the main window and its core components.
+        Initialize the main application window, its UI, and core components.
         
-        Creates the window title and size, instantiates the CommandRunner (self.runner) and LogPanel (self.log), initializes the navigation button list (self._nav_btns), connects the runner's finished signal to self._on_finish, and constructs the UI by calling self._build_ui().
+        Sets window title and size, constructs the UI, and creates primary runtime objects used by the window.
+        
+        Attributes:
+            runner (CommandRunner): Command runner used to execute and monitor external operations.
+            settings (SettingsStore): Application settings store and tool resolver.
+            log (LogPanel): Log panel bound to the command runner.
+            _nav_btns (List[QPushButton]): Sidebar navigation buttons.
+            _adb_combo (QComboBox): Status-bar combo box for selecting an ADB device.
+        
+        Side effects:
+            Registers this instance as the ADB serial provider for the runner and connects the runner's finished signal to _on_finish.
         """
         super().__init__()
         self.setWindowTitle("Android Custom Kitchen  v2.1")
@@ -55,9 +65,9 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self):
         """
-        Constructs and lays out the main application user interface for the window.
+        Builds the main window user interface: a fixed-width left navigation sidebar, a central stacked pages area with a log panel, and a status bar with ADB controls.
         
-        Builds a fixed-width left sidebar with logo, navigation buttons (populated from _NAV), and workspace label; creates a vertical splitter containing the central QStackedWidget (with Dashboard, APK, Firmware, Setup, and About pages) and the log panel; sets initial splitter sizes, initializes the status bar with a ready message, and selects the first navigation page. The Dashboard page's `navigate` signal is connected to the window navigation handler.
+        The sidebar is populated from _NAV and provides navigation buttons. The central area is a vertical splitter containing a QStackedWidget with the Dashboard, APK, Firmware, Setup, and About pages and the log panel; the Dashboard page's `navigate` signal is connected to the window navigation handler. The status bar includes an ADB device selection combo box and a refresh button. After constructing the UI, initial splitter sizes are set, the ADB device list is refreshed, and the first navigation page is shown.
         """
         root = QWidget()
         self.setCentralWidget(root)
@@ -140,14 +150,22 @@ class MainWindow(QMainWindow):
 
     def _on_finish(self, ok: bool):
         """
-        Update the status bar with a success or failure message based on the operation result.
+        Display a success or failure message in the status bar.
+        
+        Shows "✔  Operation completed successfully." when ok is True, or
+        "✖  Operation failed — check Terminal Output." when ok is False; the message is shown for 6000 milliseconds.
         
         Parameters:
-            ok (bool): True if the operation succeeded; False if it failed. Shows a corresponding message ("✔  Operation completed successfully." or "✖  Operation failed — check Terminal Output.") for 6000 milliseconds.
+            ok (bool): True if the operation succeeded, False if it failed.
         """
         self.sb.showMessage("✔  Operation completed successfully." if ok else "✖  Operation failed — check Terminal Output.", 6000)
 
     def _refresh_adb_devices(self):
+        """
+        Refreshes the ADB device selection combo box with currently connected devices.
+        
+        Repopulates the combo with an "Auto-select" entry and one entry per device whose state is "device" (labelled "<serial> (device)"). Attempts to restore the previously selected serial if it is still present and enables the combo only when there is at least one device entry besides "Auto-select".
+        """
         current = self._adb_combo.currentData()
         self._adb_combo.clear()
         self._adb_combo.addItem("Auto-select", "")
@@ -162,4 +180,10 @@ class MainWindow(QMainWindow):
         self._adb_combo.setEnabled(self._adb_combo.count() > 1)
 
     def _selected_adb_serial(self) -> str:
+        """
+        Return the currently selected ADB device serial, or an empty string to indicate auto-select.
+        
+        Returns:
+            The selected ADB serial as a string, or an empty string when auto-select is chosen or no device is selected.
+        """
         return str(self._adb_combo.currentData() or "")

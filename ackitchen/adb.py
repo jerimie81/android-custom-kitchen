@@ -12,7 +12,13 @@ class AdbDevice:
 
 def list_adb_devices(adb_program: str = "adb") -> list[AdbDevice]:
     """
-    Return devices reported by `adb devices`, excluding header/blank lines.
+    Parse the output of `adb devices` and produce a list of detected devices.
+    
+    Parameters:
+        adb_program (str): Command or path to the `adb` executable to invoke (default: "adb").
+    
+    Returns:
+        list[AdbDevice]: A list of AdbDevice instances parsed from the command output. If the `adb` command exits with a non-zero status, an empty list is returned.
     """
     proc = subprocess.run(
         [adb_program, "devices"],

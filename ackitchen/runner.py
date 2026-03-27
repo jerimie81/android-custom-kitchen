@@ -24,10 +24,12 @@ class CommandRunner(QObject):
 
     def __init__(self, parent: Optional[QObject] = None):
         """
-        Initialize the CommandRunner, create its internal QProcess, connect I/O and finish signals, and set up the command queue state.
+        Initialize the CommandRunner and its internal process, signals, and queue state.
+        
+        Creates an internal QProcess as this object's child, connects its stdout, stderr, and finished signals to the runner's handlers, and initializes the command queue, failure flag, and optional ADB-serial provider callback.
         
         Parameters:
-            parent (Optional[QObject]): Optional Qt parent for ownership; passed to QObject.__init__ and used as the parent of the internal QProcess.
+            parent (Optional[QObject]): Optional Qt parent used for ownership; passed to QObject.__init__ and set as the parent of the internal QProcess.
         """
         super().__init__(parent)
         self._proc = QProcess(self)
@@ -39,15 +41,21 @@ class CommandRunner(QObject):
         self._adb_serial_provider: Optional[Callable[[], str]] = None
 
     def set_adb_serial_provider(self, provider: Callable[[], str]):
+        """
+        Set a callback that provides the ADB device serial to use when running `adb` commands.
+        
+        Parameters:
+            provider (Callable[[], str]): Function called with no arguments that returns the desired ADB device serial (string). The runner will call this to obtain a serial to inject with `-s` when preparing `adb` commands.
+        """
         self._adb_serial_provider = provider
 
     @property
     def running(self) -> bool:
         """
-        Indicates whether the internal QProcess is currently running.
+        Determines whether the internal QProcess is running.
         
         Returns:
-            `True` if the internal process is running, `False` otherwise.
+            True if the internal process is running, False otherwise.
         """
         return self._proc.state() != QProcess.NotRunning
 
@@ -96,9 +104,9 @@ class CommandRunner(QObject):
 
     def _start_next(self):
         """
-        Advance the queue by starting the next command or finish the run if none remain.
+        Start the next command in the queue or complete the run if the queue is empty.
         
-        If the internal command queue is empty, emits `finished(<success>)` where `<success>` reflects whether any prior command failed. Otherwise, removes the next CommandSpec from the queue, sets the process working directory (using the command's `cwd` or the user's home), emits a formatted informational line showing the command, and starts the `QProcess` with the command's program and arguments.
+        If the queue is empty, emits `finished(<success>)` where `<success>` is `True` when no prior command has failed and `False` otherwise. Otherwise, removes the next `CommandSpec`, runs `_prepare_command` as a preflight and, if that returns `None`, marks the run as failed, clears the queue, emits a failure line and `finished(False)`. For a prepared command, sets the process working directory to the command's `cwd` or the user's home directory, emits an informational line showing the command as `$ <program> <args>` (arguments quoted for display), and starts the `QProcess` with the command's program and arguments.
         """
         if not self._queue:
             self.finished.emit(not self._failed)
@@ -118,6 +126,18 @@ class CommandRunner(QObject):
         self._proc.start(cmd.program, cmd.args)
 
     def _prepare_command(self, cmd: CommandSpec) -> Optional[CommandSpec]:
+        """
+        Prepare an ADB command by selecting a target device and injecting the `-s <serial>` argument when needed.
+        
+        Parameters:
+            cmd (CommandSpec): The command to prepare; if its program is not `adb` or already contains `-s` it is returned unchanged.
+        
+        Returns:
+            CommandSpec or None: A new CommandSpec with `args` rewritten to include `["-s", "<serial>", ...]` when a valid device is selected; `None` if preparation failed (no devices, ambiguous device selection, or selected device not connected).
+        
+        Notes:
+            Emits `line_out` messages describing connected devices and any selection failures.
+        """
         if Path(cmd.program).stem.lower() != "adb":
             return cmd
         if "-s" in cmd.args:
