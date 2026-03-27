@@ -22,6 +22,12 @@ class CommandRunner(QObject):
     finished = pyqtSignal(bool)
 
     def __init__(self, parent: Optional[QObject] = None):
+        """
+        Initialize the CommandRunner, create its internal QProcess, connect I/O and finish signals, and set up the command queue state.
+        
+        Parameters:
+            parent (Optional[QObject]): Optional Qt parent for ownership; passed to QObject.__init__ and used as the parent of the internal QProcess.
+        """
         super().__init__(parent)
         self._proc = QProcess(self)
         self._proc.readyReadStandardOutput.connect(self._on_stdout)
@@ -32,12 +38,34 @@ class CommandRunner(QObject):
 
     @property
     def running(self) -> bool:
+        """
+        Indicates whether the internal QProcess is currently running.
+        
+        Returns:
+            `True` if the internal process is running, `False` otherwise.
+        """
         return self._proc.state() != QProcess.NotRunning
 
     def run_one(self, program: str, args: list[str], cwd: Optional[str] = None):
+        """
+        Run a single command with the runner using the provided program, arguments, and optional working directory.
+        
+        Parameters:
+        	program (str): Executable name or path to run.
+        	args (list[str]): Argument list passed to the process (argv-style; not joined into a shell command).
+        	cwd (Optional[str]): Working directory for the command; if None the runner's default (typically the user's home) is used.
+        """
         self.run_many([CommandSpec(program, args, cwd=cwd)])
 
     def run_many(self, commands: Iterable[CommandSpec]):
+        """
+        Enqueue multiple commands and begin executing them sequentially.
+        
+        If the runner is already active, emits a failure line and returns without changing the queue. Otherwise the given commands are stored (preserving order), the internal failure flag is reset, and processing begins: if the queue is empty `finished(True)` is emitted; otherwise `started()` is emitted and execution of the first command is started.
+        
+        Parameters:
+            commands (Iterable[CommandSpec]): An iterable of CommandSpec instances to run in FIFO order.
+        """
         if self.running:
             self.line_out.emit("⚠  Another operation is already running.", "fail")
             return
@@ -50,6 +78,11 @@ class CommandRunner(QObject):
         self._start_next()
 
     def stop(self):
+        """
+        Stop any currently running command and mark the run as failed.
+        
+        If a process is running, clear the pending command queue, kill the subprocess, set the internal failure flag, and emit a user-facing failure line indicating the process was killed.
+        """
         if self.running:
             self._queue.clear()
             self._proc.kill()
@@ -57,6 +90,11 @@ class CommandRunner(QObject):
             self.line_out.emit("■  Process killed by user.", "fail")
 
     def _start_next(self):
+        """
+        Advance the queue by starting the next command or finish the run if none remain.
+        
+        If the internal command queue is empty, emits `finished(<success>)` where `<success>` reflects whether any prior command failed. Otherwise, removes the next CommandSpec from the queue, sets the process working directory (using the command's `cwd` or the user's home), emits a formatted informational line showing the command, and starts the `QProcess` with the command's program and arguments.
+        """
         if not self._queue:
             self.finished.emit(not self._failed)
             return
@@ -68,23 +106,49 @@ class CommandRunner(QObject):
 
     @staticmethod
     def _quote(v: str) -> str:
+        """
+        Render a string for safe display by quoting it only when necessary.
+        
+        Parameters:
+            v (str): Input string to format for display.
+        
+        Returns:
+            The original string if it contains no whitespace or quote characters and is not empty; otherwise the Python `repr` of the string (quoted and escaped).
+        """
         if not v or any(ch in v for ch in " \t\n\"'"):
             return repr(v)
         return v
 
     def _on_stdout(self):
+        """
+        Read available standard output from the internal process, decode it as UTF-8 (replacing invalid bytes), split into lines, and emit each non-empty line via the `line_out` signal with category `"out"`.
+        """
         raw = bytes(self._proc.readAllStandardOutput()).decode("utf-8", errors="replace")
         for line in raw.splitlines():
             if line.strip():
                 self.line_out.emit(line, "out")
 
     def _on_stderr(self):
+        """
+        Handle available standard-error data from the process and emit each non-empty decoded line with the "err" category.
+        
+        Reads any pending standard-error output from the internal QProcess, decodes it to text, splits into lines, and emits each non-blank line via the `line_out` signal with category `"err"`.
+        """
         raw = bytes(self._proc.readAllStandardError()).decode("utf-8", errors="replace")
         for line in raw.splitlines():
             if line.strip():
                 self.line_out.emit(line, "err")
 
     def _on_finish(self, code: int, _status):
+        """
+        Handle the QProcess finished event, update internal state, and either start the next queued command or emit final result signals.
+        
+        If `code` is non-zero the runner is marked as failed and pending commands are cleared. If `code` is zero and commands remain, the next command is started. When no more commands remain (or a failure occurred), emits a final status line and the `finished` signal indicating overall success.
+        
+        Parameters:
+            code (int): The process exit code.
+            _status: The QProcess exit status (unused).
+        """
         ok = code == 0
         if not ok:
             self._failed = True
