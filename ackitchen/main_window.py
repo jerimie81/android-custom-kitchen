@@ -152,8 +152,9 @@ class MainWindow(QMainWindow):
         self._adb_combo.clear()
         self._adb_combo.addItem("Auto-select", "")
         for device in list_adb_devices(self.settings.resolve_tool("adb")):
-            label = f"{device.serial} ({device.state})"
-            self._adb_combo.addItem(label, device.serial)
+            if device.state == "device":
+                label = f"{device.serial} ({device.state})"
+                self._adb_combo.addItem(label, device.serial)
         if current:
             idx = self._adb_combo.findData(current)
             if idx >= 0:

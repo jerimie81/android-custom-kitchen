@@ -118,7 +118,9 @@ class CommandRunner(QObject):
         self._proc.start(cmd.program, cmd.args)
 
     def _prepare_command(self, cmd: CommandSpec) -> Optional[CommandSpec]:
-        if Path(cmd.program).name != "adb":
+        if Path(cmd.program).stem.lower() != "adb":
+            return cmd
+        if "-s" in cmd.args:
             return cmd
         devices = [d for d in list_adb_devices(cmd.program) if d.state == "device"]
         if not devices:
@@ -136,8 +138,6 @@ class CommandRunner(QObject):
         if selected not in {d.serial for d in devices}:
             self.line_out.emit(f"✖  Selected ADB device '{selected}' is not connected.", "fail")
             return None
-        if "-s" in cmd.args:
-            return cmd
         return CommandSpec(program=cmd.program, args=["-s", selected, *cmd.args], cwd=cmd.cwd)
 
     @staticmethod
