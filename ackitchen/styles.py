@@ -21,6 +21,12 @@ BORDER = "#1E2D3D"
 
 
 def build_stylesheet() -> str:
+    """
+    Builds the application's global Qt stylesheet from the module's color and style constants.
+    
+    Returns:
+        stylesheet (str): A Qt stylesheet string defining base font and outline rules and styling for QWidget, QLabel, QLineEdit (focus state), QTextEdit, QCheckBox (including checked state), QPushButton (and object-name variants `#run`, `#stop`, `#browse`, `#nav`, `#nav_on`), QGroupBox (and its title), QStatusBar, and QProgressBar.
+    """
     return f"""
 * {{ font-family: 'Ubuntu', 'Noto Sans', 'DejaVu Sans', sans-serif; font-size: 13px; outline: none; }}
 QWidget {{ background: {BG0}; color: {TEXT}; border: none; }}
