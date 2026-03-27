@@ -3,6 +3,9 @@ from __future__ import annotations
 import platform
 import shutil
 from dataclasses import dataclass
+from typing import Optional
+
+from .settings_store import SettingsStore
 
 
 @dataclass
@@ -12,7 +15,7 @@ class CheckResult:
     remediation: str
 
 
-def run_preflight() -> list[CheckResult]:
+def run_preflight(settings: Optional[SettingsStore] = None) -> list[CheckResult]:
     """
     Run preflight checks for the runtime OS and required external tools.
     
@@ -36,7 +39,7 @@ def run_preflight() -> list[CheckResult]:
         "apksigner": "Install Android build-tools and ensure apksigner is on PATH.",
     }
     for tool, fix in required.items():
-        found = shutil.which(tool) is not None
+        found = settings.tool_available(tool) if settings else (shutil.which(tool) is not None)
         out.append(CheckResult(found, f"{tool}: {'found' if found else 'missing'}", fix))
 
     return out

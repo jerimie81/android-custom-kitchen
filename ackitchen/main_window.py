@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
 
 from .pages import APKPage, AboutPage, DashboardPage, FirmwarePage, SetupPage
 from .runner import CommandRunner
+from .settings_store import SettingsStore
 from .styles import BG0, BG1, BORDER, GREEN, MUTED
 from .widgets import LogPanel
 
@@ -42,6 +43,7 @@ class MainWindow(QMainWindow):
         self.resize(1340, 840)
 
         self.runner = CommandRunner(self)
+        self.settings = SettingsStore()
         self.log = LogPanel(self.runner)
         self._nav_btns: List[QPushButton] = []
         self.runner.finished.connect(self._on_finish)
@@ -92,9 +94,9 @@ class MainWindow(QMainWindow):
 
         vsplit = QSplitter(Qt.Vertical)
         self.stack = QStackedWidget()
-        dash = DashboardPage(self.runner, self.log)
+        dash = DashboardPage(self.runner, self.log, self.settings)
         dash.navigate.connect(self._navigate)
-        for page in (dash, APKPage(self.runner, self.log), FirmwarePage(self.runner, self.log), SetupPage(self.runner, self.log), AboutPage(self.runner, self.log)):
+        for page in (dash, APKPage(self.runner, self.log, self.settings), FirmwarePage(self.runner, self.log, self.settings), SetupPage(self.runner, self.log, self.settings), AboutPage(self.runner, self.log, self.settings)):
             self.stack.addWidget(page)
         vsplit.addWidget(self.stack)
         vsplit.addWidget(self.log)
