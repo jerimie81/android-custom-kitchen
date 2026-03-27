@@ -3,7 +3,7 @@
 
 import sys
 
-from ackitchen.app import main
+from ackitchen.entry import main
 
 
 if __name__ == "__main__":
