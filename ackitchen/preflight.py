@@ -13,6 +13,14 @@ class CheckResult:
 
 
 def run_preflight() -> list[CheckResult]:
+    """
+    Run preflight checks for the runtime OS and required external tools.
+    
+    Performs a runtime OS check (Linux vs non-Linux) and verifies the presence of several external command-line tools. Each result contains whether the check passed, a short status message, and a remediation hint.
+    
+    Returns:
+        list[CheckResult]: A list of CheckResult objects where each item indicates check success (`ok`), a human-readable `message`, and a `remediation` instruction when the check did not pass.
+    """
     out: list[CheckResult] = []
     is_linux = platform.system().lower() == "linux"
     out.append(CheckResult(is_linux, "Linux runtime detected." if is_linux else "Non-Linux runtime detected.", "Use Debian/Ubuntu for full firmware tool compatibility."))

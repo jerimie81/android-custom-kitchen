@@ -31,6 +31,11 @@ _NAV = [
 
 class MainWindow(QMainWindow):
     def __init__(self):
+        """
+        Initialize the main window and its core components.
+        
+        Creates the window title and size, instantiates the CommandRunner (self.runner) and LogPanel (self.log), initializes the navigation button list (self._nav_btns), connects the runner's finished signal to self._on_finish, and constructs the UI by calling self._build_ui().
+        """
         super().__init__()
         self.setWindowTitle("Android Custom Kitchen  v2.1")
         self.setMinimumSize(1080, 680)
@@ -43,6 +48,11 @@ class MainWindow(QMainWindow):
         self._build_ui()
 
     def _build_ui(self):
+        """
+        Constructs and lays out the main application user interface for the window.
+        
+        Builds a fixed-width left sidebar with logo, navigation buttons (populated from _NAV), and workspace label; creates a vertical splitter containing the central QStackedWidget (with Dashboard, APK, Firmware, Setup, and About pages) and the log panel; sets initial splitter sizes, initializes the status bar with a ready message, and selects the first navigation page. The Dashboard page's `navigate` signal is connected to the window navigation handler.
+        """
         root = QWidget()
         self.setCentralWidget(root)
         rl = QHBoxLayout(root)
@@ -97,6 +107,12 @@ class MainWindow(QMainWindow):
         self._navigate(0)
 
     def _navigate(self, idx: int):
+        """
+        Switches the stacked widget to the specified page and updates sidebar buttons so the button for that page is visually active.
+        
+        Parameters:
+            idx (int): Index of the page in the stacked widget to activate; the navigation button at this index will be assigned the active style.
+        """
         self.stack.setCurrentIndex(idx)
         for i, btn in enumerate(self._nav_btns):
             name = "nav_on" if i == idx else "nav"
@@ -107,4 +123,10 @@ class MainWindow(QMainWindow):
                 btn.update()
 
     def _on_finish(self, ok: bool):
+        """
+        Update the status bar with a success or failure message based on the operation result.
+        
+        Parameters:
+            ok (bool): True if the operation succeeded; False if it failed. Shows a corresponding message ("✔  Operation completed successfully." or "✖  Operation failed — check Terminal Output.") for 6000 milliseconds.
+        """
         self.sb.showMessage("✔  Operation completed successfully." if ok else "✖  Operation failed — check Terminal Output.", 6000)
