@@ -17,8 +17,13 @@ DEPS=(
   "unpack_bootimg:unpack_bootimg:android-sdk-libsparse-utils"
   "mkbootimg:mkbootimg:android-sdk-libsparse-utils"
   "fsck.erofs:fsck.erofs:erofs-utils"
+  "brotli:brotli:brotli"
+  "lz4:lz4:lz4"
+  "7z:7z:p7zip-full"
+  "binwalk:binwalk:binwalk"
   "jadx:jadx:"
   "payload-dumper-go:payload-dumper-go:"
+  "magiskboot:magiskboot:"
 )
 
 COMMON_PATHS=(

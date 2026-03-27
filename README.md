@@ -29,14 +29,27 @@ Every operation delegates to the battle-tested open-source tools the community a
 | Feature | Tool | Notes |
 |---|---|---|
 | Extract OTA payload | `payload-dumper-go` | Parallel extraction of all partition images from `payload.bin` |
+| Unpack `payload.bin` / `.payload` | `payload-dumper-go` | Supports Pixel/OTA payload style payload archives |
+| Repack payload package metadata | `zip` / `tar` | Rebuild update package wrapper after payload modifications |
+| Convert sparse `*.dat(.br)` to image | `brotli` + `sdat2img` | Turns `system.new.dat` / `system.new.dat.br` into raw `.img` |
+| Convert image back to `*.dat` | `img2sdat` | Recreate `system.new.dat` + `transfer.list` for flashable ROM zips |
+| Unpack generic firmware `.bin` | `binwalk` / `7z` | Split combined firmware binaries to component partitions |
+| Repack generic firmware `.bin` | `mkfs` / `img2simg` | Rebuild partition blobs after edits |
 | Unpack `super.img` | `lpunpack` | Extracts logical partitions (system, vendor, product, odm…) |
 | Repack `super.img` | `lpmake` | Guided template with size/group fields |
 | Unpack `boot.img` | `unpack_bootimg` / Android Image Kitchen | Kernel, ramdisk.cpio, DTB |
 | Repack `boot.img` | `mkbootimg` / Android Image Kitchen | Editable cmdline, base, pagesize, OS version |
 | Extract EROFS | `fsck.erofs` | Android 12+ system/vendor partition images |
 
+#### Root / Boot Patching
+| Feature | Tool | Notes |
+|---|---|---|
+| Patch `boot.img` for root | `magiskboot` / Magisk app | Patch boot image and keep a backup of stock boot |
+| Patch Samsung `.tar` firmware for root | `tar` + `lz4` + Magisk | Extract `AP*.tar`, patch `boot.img` or `init_boot.img`, repack flashable `.tar` |
+| Verify patched boot chain | `avbtool` | Check vbmeta flags and rollback index compatibility |
+
 ### General
-- **Live tool status dashboard** — all 12 tools detected via `shutil.which`, green/red at a glance
+- **Live tool status dashboard** — all 12+ tools detected via `shutil.which`, green/red at a glance
 - **Real-time terminal output** — `QProcess`-backed streaming, color-coded by stream type
 - **One-click Setup** — installs all apt packages and downloads GitHub binaries automatically
 - **Resizable terminal panel** — drag the splitter; collapse when not needed
