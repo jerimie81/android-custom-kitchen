@@ -35,9 +35,9 @@ _NAV = [
 class MainWindow(QMainWindow):
     def __init__(self):
         """
-        Initialize the main application window, its UI, and core components.
+        Create and configure the main application window, its UI, and core runtime components.
         
-        Sets window title and size, constructs the UI, and creates primary runtime objects used by the window.
+        Initializes the window and its widgets, instantiates CommandRunner, SettingsStore, and LogPanel, and constructs navigation and status-bar elements (including the ADB device combo). Registers this instance as the ADB serial provider for the runner and connects the runner's finished signal to the window's finish handler.
         
         Attributes:
             runner (CommandRunner): Command runner used to execute and monitor external operations.
@@ -45,9 +45,6 @@ class MainWindow(QMainWindow):
             log (LogPanel): Log panel bound to the command runner.
             _nav_btns (List[QPushButton]): Sidebar navigation buttons.
             _adb_combo (QComboBox): Status-bar combo box for selecting an ADB device.
-        
-        Side effects:
-            Registers this instance as the ADB serial provider for the runner and connects the runner's finished signal to _on_finish.
         """
         super().__init__()
         self.setWindowTitle("Android Custom Kitchen  v2.1")
@@ -150,21 +147,17 @@ class MainWindow(QMainWindow):
 
     def _on_finish(self, ok: bool):
         """
-        Display a success or failure message in the status bar.
+        Show a transient status-bar message indicating the outcome of an operation.
         
-        Shows "✔  Operation completed successfully." when ok is True, or
-        "✖  Operation failed — check Terminal Output." when ok is False; the message is shown for 6000 milliseconds.
-        
-        Parameters:
-            ok (bool): True if the operation succeeded, False if it failed.
+        If ok is True, displays "✔  Operation completed successfully." otherwise displays "✖  Operation failed — check Terminal Output." The message is shown for 6000 milliseconds.
         """
         self.sb.showMessage("✔  Operation completed successfully." if ok else "✖  Operation failed — check Terminal Output.", 6000)
 
     def _refresh_adb_devices(self):
         """
-        Refreshes the ADB device selection combo box with currently connected devices.
+        Update the ADB device selector with currently connected devices.
         
-        Repopulates the combo with an "Auto-select" entry and one entry per device whose state is "device" (labelled "<serial> (device)"). Attempts to restore the previously selected serial if it is still present and enables the combo only when there is at least one device entry besides "Auto-select".
+        Rebuilds the combo box to include an "Auto-select" entry (data = "") plus one entry per connected device whose state is "device", labeled "<serial> (device)" with the combo data set to the device serial. If the previously selected serial is still present it is restored. The combo is enabled only when it contains at least one device entry besides "Auto-select".
         """
         current = self._adb_combo.currentData()
         self._adb_combo.clear()
@@ -181,9 +174,9 @@ class MainWindow(QMainWindow):
 
     def _selected_adb_serial(self) -> str:
         """
-        Return the currently selected ADB device serial, or an empty string to indicate auto-select.
+        Get the currently selected ADB device serial or indicate auto-selection.
         
         Returns:
-            The selected ADB serial as a string, or an empty string when auto-select is chosen or no device is selected.
+            The selected ADB serial as a string; an empty string indicates "Auto-select" or no device is selected.
         """
         return str(self._adb_combo.currentData() or "")

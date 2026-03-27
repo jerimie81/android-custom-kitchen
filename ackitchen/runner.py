@@ -42,20 +42,20 @@ class CommandRunner(QObject):
 
     def set_adb_serial_provider(self, provider: Callable[[], str]):
         """
-        Set a callback that provides the ADB device serial to use when running `adb` commands.
+        Register a callback that supplies the ADB device serial for `adb` commands.
         
         Parameters:
-            provider (Callable[[], str]): Function called with no arguments that returns the desired ADB device serial (string). The runner will call this to obtain a serial to inject with `-s` when preparing `adb` commands.
+            provider (Callable[[], str]): A no-argument callable that returns the ADB device serial string to inject with `-s` when preparing `adb` invocations.
         """
         self._adb_serial_provider = provider
 
     @property
     def running(self) -> bool:
         """
-        Determines whether the internal QProcess is running.
+        Report whether the runner's internal process is currently active.
         
         Returns:
-            True if the internal process is running, False otherwise.
+            True if the internal QProcess is running, False otherwise.
         """
         return self._proc.state() != QProcess.NotRunning
 
@@ -104,9 +104,9 @@ class CommandRunner(QObject):
 
     def _start_next(self):
         """
-        Start the next command in the queue or complete the run if the queue is empty.
+        Begin execution of the next queued CommandSpec or complete the run when the queue is empty.
         
-        If the queue is empty, emits `finished(<success>)` where `<success>` is `True` when no prior command has failed and `False` otherwise. Otherwise, removes the next `CommandSpec`, runs `_prepare_command` as a preflight and, if that returns `None`, marks the run as failed, clears the queue, emits a failure line and `finished(False)`. For a prepared command, sets the process working directory to the command's `cwd` or the user's home directory, emits an informational line showing the command as `$ <program> <args>` (arguments quoted for display), and starts the `QProcess` with the command's program and arguments.
+        If the queue is empty, emits `finished(True)` when no prior command has failed or `finished(False)` otherwise. If a queued command fails preflight (i.e., `_prepare_command` returns `None`), marks the run as failed, clears the queue, emits a failure line, and emits `finished(False)`. For a prepared command, sets the process working directory to the command's `cwd` or the user's home directory, emits an informational line displaying the command, and starts the internal `QProcess` with the command's program and arguments.
         """
         if not self._queue:
             self.finished.emit(not self._failed)
@@ -127,16 +127,15 @@ class CommandRunner(QObject):
 
     def _prepare_command(self, cmd: CommandSpec) -> Optional[CommandSpec]:
         """
-        Prepare an ADB command by selecting a target device and injecting the `-s <serial>` argument when needed.
+        Prepare an adb CommandSpec by ensuring a target device is selected and inserting the "-s <serial>" argument when needed.
+        
+        If the program is not an adb executable (by Path(cmd.program).stem) or the args already contain "-s", returns cmd unchanged. For adb without "-s", selects a single connected device: it uses the registered adb-serial provider if present (trimmed), or auto-selects when exactly one device is connected. Emits informational or failure messages via `line_out` when listing devices or when selection fails. On success returns a new CommandSpec whose args are ["-s", selected_serial, *original_args]; returns None if no device is connected, if multiple devices exist with no selection, or if the selected serial is not currently connected.
         
         Parameters:
-            cmd (CommandSpec): The command to prepare; if its program is not `adb` or already contains `-s` it is returned unchanged.
+            cmd (CommandSpec): The command to prepare.
         
         Returns:
-            CommandSpec or None: A new CommandSpec with `args` rewritten to include `["-s", "<serial>", ...]` when a valid device is selected; `None` if preparation failed (no devices, ambiguous device selection, or selected device not connected).
-        
-        Notes:
-            Emits `line_out` messages describing connected devices and any selection failures.
+            Optional[CommandSpec]: A new CommandSpec with "-s <serial>" injected on success, or `None` if preparation failed.
         """
         if Path(cmd.program).stem.lower() != "adb":
             return cmd
@@ -163,13 +162,13 @@ class CommandRunner(QObject):
     @staticmethod
     def _quote(v: str) -> str:
         """
-        Render a string for safe display by quoting it only when necessary.
+        Return a display-friendly string, quoting only when necessary.
         
         Parameters:
             v (str): Input string to format for display.
         
         Returns:
-            The original string if it contains no whitespace or quote characters and is not empty; otherwise the Python `repr` of the string (quoted and escaped).
+            str: The original string when it is non-empty and contains no whitespace or quote characters; otherwise the string's Python `repr` (quoted and escaped).
         """
         if not v or any(ch in v for ch in " \t\n\"'"):
             return repr(v)

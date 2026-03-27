@@ -431,9 +431,9 @@ class FirmwarePage(PageBase):
 
     def _do_pack_super(self):
         """
-        Create a device-aware Android super image from partition `.img` files using lpmake.
+        Pack partition `.img` files into an Android super image using lpmake.
         
-        Validates the partition directory and output path, parses `super`, `group`, and `metadata` sizes from the UI as integers, verifies that the group size is at least the total of partition bytes, and constructs lpmake arguments (metadata size, super/group sizing, and per-partition entries) before invoking the resolved `lpmake` tool via the page's command runner. On validation failures or filesystem errors, appends a failure message to the page log and returns without running lpmake.
+        Validates the selected partition directory and output path, parses `super`, `group`, and `metadata` sizes from the UI as integers, and ensures the group size is at least the sum of the partition file sizes. If validation or filesystem checks fail, appends a failure message to the page log and returns without running any commands. On success, invokes the resolved `lpmake` tool via the page's command runner to produce the specified output super image.
         """
         d, o = Path(self.pk_dir.value()), self.pk_out.value()
         if not d.exists() or not o:
@@ -530,7 +530,7 @@ class SetupPage(PageBase):
 class AboutPage(PageBase):
     def __init__(self, runner: CommandRunner, log, settings: SettingsStore, parent: Optional[QWidget] = None):
         """
-        Create the About page UI showing the application title, version/platform, and a brief build description.
+        Constructs the About page UI displaying the application title, version/platform, and a brief build description.
         
         Adds styled labels for the app title, a version/platform line, and a short build summary, then inserts a stretch to consume remaining vertical space.
         """
