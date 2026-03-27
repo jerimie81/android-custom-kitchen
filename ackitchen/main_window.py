@@ -4,6 +4,7 @@ from typing import List
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -15,6 +16,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from .adb import list_adb_devices
 from .pages import APKPage, AboutPage, DashboardPage, FirmwarePage, SetupPage
 from .runner import CommandRunner
 from .settings_store import SettingsStore
@@ -46,6 +48,8 @@ class MainWindow(QMainWindow):
         self.settings = SettingsStore()
         self.log = LogPanel(self.runner)
         self._nav_btns: List[QPushButton] = []
+        self._adb_combo = QComboBox()
+        self.runner.set_adb_serial_provider(self._selected_adb_serial)
         self.runner.finished.connect(self._on_finish)
         self._build_ui()
 
@@ -105,7 +109,17 @@ class MainWindow(QMainWindow):
 
         self.sb = QStatusBar()
         self.setStatusBar(self.sb)
+        self._adb_combo.setMinimumWidth(220)
+        self._adb_combo.setToolTip("ADB target device serial")
+        self._adb_refresh_btn = QPushButton("⟳")
+        self._adb_refresh_btn.setFixedWidth(32)
+        self._adb_refresh_btn.setToolTip("Refresh connected ADB devices")
+        self._adb_refresh_btn.clicked.connect(self._refresh_adb_devices)
+        self.sb.addPermanentWidget(QLabel("ADB Device:"))
+        self.sb.addPermanentWidget(self._adb_combo)
+        self.sb.addPermanentWidget(self._adb_refresh_btn)
         self.sb.showMessage("Ready — select a workflow from the sidebar to begin.")
+        self._refresh_adb_devices()
         self._navigate(0)
 
     def _navigate(self, idx: int):
@@ -132,3 +146,19 @@ class MainWindow(QMainWindow):
             ok (bool): True if the operation succeeded; False if it failed. Shows a corresponding message ("✔  Operation completed successfully." or "✖  Operation failed — check Terminal Output.") for 6000 milliseconds.
         """
         self.sb.showMessage("✔  Operation completed successfully." if ok else "✖  Operation failed — check Terminal Output.", 6000)
+
+    def _refresh_adb_devices(self):
+        current = self._adb_combo.currentData()
+        self._adb_combo.clear()
+        self._adb_combo.addItem("Auto-select", "")
+        for device in list_adb_devices(self.settings.resolve_tool("adb")):
+            label = f"{device.serial} ({device.state})"
+            self._adb_combo.addItem(label, device.serial)
+        if current:
+            idx = self._adb_combo.findData(current)
+            if idx >= 0:
+                self._adb_combo.setCurrentIndex(idx)
+        self._adb_combo.setEnabled(self._adb_combo.count() > 1)
+
+    def _selected_adb_serial(self) -> str:
+        return str(self._adb_combo.currentData() or "")
