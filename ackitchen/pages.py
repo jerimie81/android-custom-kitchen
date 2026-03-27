@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import (
     QCheckBox,
     QGridLayout,

@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
             if device.state == "device":
                 label = f"{device.serial} ({device.state})"
                 self._adb_combo.addItem(label, device.serial)
-        if current:
+        if current is not None:
             idx = self._adb_combo.findData(current)
             if idx >= 0:
                 self._adb_combo.setCurrentIndex(idx)
