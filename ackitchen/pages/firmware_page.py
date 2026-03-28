@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QGridLayout, QGroupBox, QLabel, QLineEdit, QTabWidget, QWidget
 
 from ..runner import CommandRunner
@@ -54,6 +55,10 @@ class FirmwarePage(PageBase):
         self.pk_super_size = QLineEdit("3221225472")
         self.pk_group_size = QLineEdit("3221225472")
         self.pk_meta_size = QLineEdit("65536")
+        int_validator = QIntValidator(0, 2**63 - 1, self)
+        self.pk_super_size.setValidator(int_validator)
+        self.pk_group_size.setValidator(int_validator)
+        self.pk_meta_size.setValidator(int_validator)
         self.settings.bind_line_edit(self.pk_dir.edit, "firmware/super/input_dir")
         self.settings.bind_line_edit(self.pk_out.edit, "firmware/super/output", "super_new.img")
         self.settings.bind_line_edit(self.pk_super_size, "firmware/super/super_size", "3221225472")

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import QGridLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtCore import QObject, QThread, Qt, pyqtSignal
+from PyQt5.QtWidgets import QGridLayout, QGroupBox, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
-from ..preflight import run_preflight
+from ..preflight import CheckResult, run_preflight
 from ..runner import CommandRunner
 from ..settings_store import SettingsStore
 from ..styles import BG2, GDIM, GREEN, MUTED, RED
@@ -27,12 +27,28 @@ TOOL_REGISTRY = [
 ]
 
 
+class PreflightWorker(QObject):
+    finished = pyqtSignal(object)
+
+    def __init__(self, settings: SettingsStore):
+        super().__init__()
+        self.settings = settings
+
+    def run(self):
+        self.finished.emit(run_preflight(self.settings))
+
+
 class DashboardPage(PageBase):
     navigate = pyqtSignal(int)
 
     def __init__(self, runner: CommandRunner, log, settings: SettingsStore, parent: Optional[QWidget] = None):
         super().__init__("Dashboard", "Tool status and quick-access workflows", runner, log, settings, parent)
         self._cards: dict[str, QWidget] = {}
+        self._preflight_thread: Optional[QThread] = None
+        self._preflight_worker: Optional[PreflightWorker] = None
+        self._preflight_layout: Optional[QVBoxLayout] = None
+        self._preflight_spinner: Optional[QProgressBar] = None
+        self.destroyed.connect(self._stop_preflight_thread)
         self._build()
 
     def _build(self):
@@ -46,12 +62,13 @@ class DashboardPage(PageBase):
 
         preflight = QGroupBox("Startup Preflight")
         pl = QVBoxLayout(preflight)
-        for result in run_preflight(self.settings):
-            prefix = "✔" if result.ok else "✖"
-            color = GREEN if result.ok else RED
-            row = QLabel(f"{prefix}  {result.message}\n    Remediation: {result.remediation}")
-            row.setStyleSheet(f"color:{color if result.ok else '#FF9AA5'}; font-size:12px;")
-            pl.addWidget(row)
+        self._preflight_layout = pl
+        self._preflight_spinner = QProgressBar()
+        self._preflight_spinner.setRange(0, 0)
+        self._preflight_spinner.setTextVisible(False)
+        self._preflight_spinner.setFixedHeight(10)
+        pl.addWidget(QLabel("Running startup preflight checks..."))
+        pl.addWidget(self._preflight_spinner)
         self.bl.addWidget(preflight)
 
         ref_btn = QPushButton("⟳  Refresh Status")
@@ -59,6 +76,55 @@ class DashboardPage(PageBase):
         self.bl.addWidget(ref_btn, alignment=Qt.AlignLeft)
         self.bl.addStretch()
         self._refresh()
+        self._run_preflight_async()
+
+    def _run_preflight_async(self):
+        if self._preflight_thread is not None:
+            return
+        self._preflight_thread = QThread(self)
+        self._preflight_worker = PreflightWorker(self.settings)
+        self._preflight_worker.moveToThread(self._preflight_thread)
+        self._preflight_thread.started.connect(self._preflight_worker.run)
+        self._preflight_worker.finished.connect(self._on_preflight_ready)
+        self._preflight_worker.finished.connect(self._preflight_thread.quit)
+        self._preflight_thread.finished.connect(self._preflight_worker.deleteLater)
+        self._preflight_thread.finished.connect(self._preflight_thread.deleteLater)
+        self._preflight_thread.finished.connect(self._on_preflight_thread_finished)
+        self._preflight_thread.start()
+
+    def _on_preflight_ready(self, results: object):
+        if self._preflight_layout is None:
+            return
+        self._clear_preflight_rows()
+        for result in results:
+            self._add_preflight_row(result)
+
+    def _on_preflight_thread_finished(self):
+        self._preflight_thread = None
+        self._preflight_worker = None
+
+    def _stop_preflight_thread(self):
+        if self._preflight_thread is not None and self._preflight_thread.isRunning():
+            self._preflight_thread.quit()
+            self._preflight_thread.wait(2000)
+
+    def _clear_preflight_rows(self):
+        if self._preflight_layout is None:
+            return
+        while self._preflight_layout.count():
+            item = self._preflight_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def _add_preflight_row(self, result: CheckResult):
+        if self._preflight_layout is None:
+            return
+        prefix = "✔" if result.ok else "✖"
+        color = GREEN if result.ok else RED
+        row = QLabel(f"{prefix}  {result.message}\n    Remediation: {result.remediation}")
+        row.setStyleSheet(f"color:{color if result.ok else '#FF9AA5'}; font-size:12px;")
+        self._preflight_layout.addWidget(row)
 
     def _make_card(self, cmd: str, name: str, desc: str) -> QWidget:
         card = QWidget()
