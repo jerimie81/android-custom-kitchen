@@ -45,5 +45,8 @@ class SettingsStore:
     def tool_available(self, tool_name: str) -> bool:
         candidate = self.resolve_tool(tool_name)
         if os.path.sep in candidate:
-            return os.path.isfile(candidate) and os.access(candidate, os.X_OK)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return True
+            # Fallback to PATH lookup when a stale/invalid override is configured.
+            return shutil.which(tool_name) is not None
         return shutil.which(candidate) is not None

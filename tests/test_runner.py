@@ -121,3 +121,14 @@ def test_stop_kills_process_and_marks_failed(fake_qprocess, capture_signals):
 
     runner._proc.finish(9)
     assert capture_signals.finished == [False]
+
+
+def test_stderr_androlib_exception_emits_apktool_upgrade_hint(fake_qprocess, capture_signals):
+    runner = CommandRunner()
+    runner.line_out.connect(lambda line, kind: capture_signals.lines.append((line, kind)))
+
+    runner._proc.readAllStandardError = lambda: b"brut.androlib.AndrolibException: decode failed\n"
+    runner._on_stderr()
+
+    assert ("brut.androlib.AndrolibException: decode failed", "err") in capture_signals.lines
+    assert any("apktool may be too old" in line and kind == "info" for line, kind in capture_signals.lines)

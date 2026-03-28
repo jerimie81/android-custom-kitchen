@@ -10,6 +10,18 @@ def main() -> int:
 
         return run_cli(argv[1:])
 
-    from .app import main as run_gui
+    try:
+        from .app import main as run_gui
+    except ModuleNotFoundError as exc:
+        if exc.name and exc.name.startswith("PyQt5"):
+            print(
+                "PyQt5 is required for GUI mode but is not installed.\n"
+                "Install it with one of:\n"
+                "  pip install PyQt5\n"
+                "  sudo apt-get install python3-pyqt5",
+                file=sys.stderr,
+            )
+            return 1
+        raise
 
     return run_gui()
