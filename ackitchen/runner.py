@@ -35,6 +35,7 @@ class CommandRunner(QObject):
         self._proc.finished.connect(self._on_finish)
         self._queue: list[CommandSpec] = []
         self._failed = False
+        self._apktool_hint_emitted = False
 
     @property
     def running(self) -> bool:
@@ -99,6 +100,7 @@ class CommandRunner(QObject):
             self.finished.emit(not self._failed)
             return
         cmd = self._queue.pop(0)
+        self._apktool_hint_emitted = False
         self._proc.setWorkingDirectory(cmd.cwd or str(Path.home()))
         pretty = " ".join([cmd.program, *[self._quote(arg) for arg in cmd.args]])
         self.line_out.emit(f"$ {pretty}", "info")
@@ -138,6 +140,13 @@ class CommandRunner(QObject):
         for line in raw.splitlines():
             if line.strip():
                 self.line_out.emit(line, "err")
+                if (not self._apktool_hint_emitted) and "brut.androlib.AndrolibException" in line:
+                    self._apktool_hint_emitted = True
+                    self.line_out.emit(
+                        "ℹ  apktool may be too old for this APK resource format. "
+                        "Try upgrading apktool and re-run.",
+                        "info",
+                    )
 
     def _on_finish(self, code: int, _status):
         """
